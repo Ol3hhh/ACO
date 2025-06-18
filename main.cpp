@@ -1,33 +1,42 @@
 #include <SFML/Graphics.hpp>
+#include "Menu.hpp"
+#include <iostream>
 
 int main() {
-    // Tworzymy okno o wymiarach 800x600
-    sf::RenderWindow window(sf::VideoMode(800, 600), "SFML Example");
+    sf::RenderWindow window(sf::VideoMode(600, 420), "ACO Menu");
+    sf::Font font;
 
-    // Ustawiamy limit klatek na sekundę (opcjonalnie)
-    window.setFramerateLimit(60);
+    if (!font.loadFromFile("../assets/arial.ttf")) {
+        std::cerr << "Font load error\n";
+        return 1;
+    }
 
-    // Tworzymy kształt — czerwone koło
-    sf::CircleShape circle(100);  // promień 100
-    circle.setFillColor(sf::Color::Red);
-    circle.setPosition(350, 250); // środek ekranu (w przybliżeniu)
+    Menu menu(font);
 
-    // Pętla główna programu
     while (window.isOpen()) {
         sf::Event event;
         while (window.pollEvent(event)) {
-            // Zamknięcie okna
             if (event.type == sf::Event::Closed)
                 window.close();
+
+            if (event.type == sf::Event::MouseMoved) {
+                sf::Vector2f mouse(sf::Mouse::getPosition(window));
+                menu.handleHover(mouse);
+            }
+
+            if (event.type == sf::Event::MouseButtonPressed) {
+                sf::Vector2f mouse(sf::Mouse::getPosition(window));
+                MenuOption choice = menu.handleClick(mouse);
+
+                if (choice == MenuOption::Sequential)
+                    std::cout << "Sekwencyjny wybrany\n";
+                else if (choice == MenuOption::Parallel)
+                    std::cout << "Wielowatkowy wybrany\n";
+            }
         }
 
-        // Czyszczenie okna (kolor tła: niebieski)
-        window.clear(sf::Color::Blue);
-
-        // Rysujemy obiekty
-        window.draw(circle);
-
-        // Wyświetlamy to, co zostało narysowane
+        window.clear(sf::Color(30, 30, 30)); 
+        menu.draw(window);
         window.display();
     }
 
