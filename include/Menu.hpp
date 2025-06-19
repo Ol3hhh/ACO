@@ -1,5 +1,6 @@
 #pragma once
 #include <SFML/Graphics.hpp>
+#include "Constants.hpp"
 
 enum class MenuOption {
     None,
@@ -10,6 +11,7 @@ enum class MenuOption {
 class Menu {
 public:
     Menu(sf::Font& font);
+
     void draw(sf::RenderWindow& window);
     MenuOption handleClick(const sf::Vector2f& mousePos);
     void handleHover(const sf::Vector2f& mousePos);
