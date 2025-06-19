@@ -2,17 +2,21 @@
 #include "Menu.hpp"
 #include "Graph.hpp"
 #include "GraphRender.hpp"
+#include "PathRender.hpp"
+#include "ACO.hpp"
 #include "Constants.hpp"
 #include <iostream>
 #include <cmath>
 #include <random>
+#include <chrono>
 
 int main() {
-    const int N = 20;
-    Graph graph(N, 0.5);
+    const int N = 150;
+    Graph graph(N, 0.5f);  
 
     std::vector<sf::Vector2f> positions;
-    std::mt19937 rng(std::random_device{}());
+    unsigned int seed = 1; 
+    std::mt19937 rng(seed);
     std::uniform_real_distribution<float> distX(50, SIZE - 50);
     std::uniform_real_distribution<float> distY(50, SIZE - 50);
     for (int i = 0; i < N; ++i)
@@ -28,6 +32,7 @@ int main() {
 
     Menu menu(font);
     GraphRenderer renderer(graph, positions);
+    PathRenderer pathRenderer(positions);
 
     bool showGraph = false;
 
@@ -47,12 +52,40 @@ int main() {
                     sf::Vector2f mouse(sf::Mouse::getPosition(window));
                     MenuOption choice = menu.handleClick(mouse);
 
-                    if (choice == MenuOption::Sequential) {
-                        std::cout << "Sekwencyjny wybrany\n";
+                    if (choice == MenuOption::Sequential || choice == MenuOption::Parallel) {
                         showGraph = true;
-                    } else if (choice == MenuOption::Parallel) {
-                        std::cout << "Wielowatkowy wybrany\n";
-                        showGraph = true;
+
+                  
+                        int numAnts = 50;
+                        int iterations = 100;
+                        float alpha = 1.0f;
+                        float beta = 5.0f;
+                        float evaporation = 0.5f;
+                        float Q = 100.0f;
+
+                        ACO aco(graph, numAnts, alpha, beta, evaporation, Q);
+
+                       
+                        auto start = std::chrono::high_resolution_clock::now();
+
+                        if (choice == MenuOption::Sequential) {
+                            std::cout << "Tryb sekwencyjny...\n";
+                            aco.runSequential(iterations);
+                        } else {
+                            std::cout << "Tryb wielowątkowy...\n";
+                            unsigned int threads = std::thread::hardware_concurrency();
+                            if (threads == 0) threads = 4;
+                            aco.runParallel(iterations, threads);
+                        }
+
+                        auto end = std::chrono::high_resolution_clock::now();
+                        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+
+                        std::cout << "Długość najlepszej trasy: " << aco.getBestPathLength() << "\n";
+                        std::cout << "Czas wykonania: " << duration.count() << " ms\n";
+
+                      
+                        pathRenderer.setPath(aco.getBestPath());
                     }
                 }
             }
@@ -62,6 +95,7 @@ int main() {
 
         if (showGraph) {
             renderer.draw(window);
+            pathRenderer.draw(window);
         } else {
             menu.draw(window);
         }
