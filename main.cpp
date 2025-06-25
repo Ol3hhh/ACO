@@ -4,19 +4,69 @@
 #include "GraphRender.hpp"
 #include "PathRender.hpp"
 #include "ACO.hpp"
+#include "ACO_GPU.hpp"
 #include "Constants.hpp"
 #include <iostream>
-#include <cmath>
 #include <random>
 #include <chrono>
+#include <thread>
+#include <iomanip>
+
+void runTestComparison(const Graph& graph) {
+    int numAnts = 50;
+    int iterations = 100;
+    float alpha = 1.0f;
+    float beta = 5.0f;
+    float evaporation = 0.5f;
+    float Q = 100.0f;
+
+    std::cout << "\n=== AUTO TEST porównawczy ===\n";
+
+    auto runAndMeasure = [&](const std::string& name, auto&& algoFunc) {
+        auto start = std::chrono::high_resolution_clock::now();
+        auto [path, length] = algoFunc();
+        auto end = std::chrono::high_resolution_clock::now();
+        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+
+        std::cout << std::fixed << std::setprecision(2);
+        std::cout << name << " - długość: " << length << ", czas: " << ms << " ms\n";
+    };
+
+    runAndMeasure("SEKWENCYJNY", [&]() {
+        ACO aco(graph, numAnts, alpha, beta, evaporation, Q);
+        aco.runSequential(iterations);
+        return std::make_pair(aco.getBestPath(), aco.getBestPathLength());
+    });
+
+    runAndMeasure("WIELOWĄTKOWY", [&]() {
+        ACO aco(graph, numAnts, alpha, beta, evaporation, Q);
+        unsigned int threads = std::thread::hardware_concurrency();
+        if (threads == 0) threads = 4;
+        aco.runParallel(iterations, threads);
+        return std::make_pair(aco.getBestPath(), aco.getBestPathLength());
+    });
+
+    runAndMeasure("GPU (CUDA)", [&]() {
+        try {
+            ACO_GPU acoGPU(graph, numAnts, alpha, beta, evaporation, Q);
+            acoGPU.run(iterations);
+            return std::make_pair(acoGPU.getBestPath(), acoGPU.getBestPathLength());
+        } catch (const std::exception& e) {
+            std::cerr << "Błąd CUDA: " << e.what() << std::endl;
+            return std::make_pair(std::vector<int>(), -1.0f);
+        }
+    });
+
+    std::cout << "==============================\n";
+}
+
 
 int main() {
-    const int N = 150;
-    Graph graph(N, 0.5f);  
+    const int N = 50;
+    Graph graph(N, 1);
 
     std::vector<sf::Vector2f> positions;
-    unsigned int seed = 1; 
-    std::mt19937 rng(seed);
+    std::mt19937 rng(1);
     std::uniform_real_distribution<float> distX(50, SIZE - 50);
     std::uniform_real_distribution<float> distY(50, SIZE - 50);
     for (int i = 0; i < N; ++i)
@@ -52,10 +102,9 @@ int main() {
                     sf::Vector2f mouse(sf::Mouse::getPosition(window));
                     MenuOption choice = menu.handleClick(mouse);
 
-                    if (choice == MenuOption::Sequential || choice == MenuOption::Parallel) {
+                    if (choice == MenuOption::Sequential || choice == MenuOption::Parallel || choice == MenuOption::GPU) {
                         showGraph = true;
 
-                  
                         int numAnts = 50;
                         int iterations = 100;
                         float alpha = 1.0f;
@@ -63,43 +112,52 @@ int main() {
                         float evaporation = 0.5f;
                         float Q = 100.0f;
 
-                        ACO aco(graph, numAnts, alpha, beta, evaporation, Q);
-
-                       
                         auto start = std::chrono::high_resolution_clock::now();
 
                         if (choice == MenuOption::Sequential) {
                             std::cout << "Tryb sekwencyjny...\n";
+                            ACO aco(graph, numAnts, alpha, beta, evaporation, Q);
                             aco.runSequential(iterations);
-                        } else {
+                            pathRenderer.setPath(aco.getBestPath());
+                            std::cout << "Długość najlepszej trasy: " << aco.getBestPathLength() << "\n";
+                        } else if (choice == MenuOption::Parallel) {
                             std::cout << "Tryb wielowątkowy...\n";
+                            ACO aco(graph, numAnts, alpha, beta, evaporation, Q);
                             unsigned int threads = std::thread::hardware_concurrency();
                             if (threads == 0) threads = 4;
                             aco.runParallel(iterations, threads);
+                            pathRenderer.setPath(aco.getBestPath());
+                            std::cout << "Długość najlepszej trasy: " << aco.getBestPathLength() << "\n";
+                        } else if (choice == MenuOption::GPU) {
+                            std::cout << "Tryb GPU (CUDA)...\n";
+                            try {
+                                ACO_GPU acoGPU(graph, numAnts, alpha, beta, evaporation, Q);
+                                acoGPU.run(iterations);
+                                pathRenderer.setPath(acoGPU.getBestPath());
+                                std::cout << "Długość najlepszej trasy: " << acoGPU.getBestPathLength() << "\n";
+                            } catch (const std::exception& e) {
+                                std::cerr << "Błąd CUDA: " << e.what() << std::endl;
+                            }
                         }
 
                         auto end = std::chrono::high_resolution_clock::now();
                         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-
-                        std::cout << "Długość najlepszej trasy: " << aco.getBestPathLength() << "\n";
                         std::cout << "Czas wykonania: " << duration.count() << " ms\n";
 
-                      
-                        pathRenderer.setPath(aco.getBestPath());
+                    } else if (choice == MenuOption::AutoTest) {
+                        runTestComparison(graph);
                     }
                 }
             }
         }
 
         window.clear(sf::Color(30, 30, 30));
-
         if (showGraph) {
             renderer.draw(window);
             pathRenderer.draw(window);
         } else {
             menu.draw(window);
         }
-
         window.display();
     }
 

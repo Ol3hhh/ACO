@@ -1,3 +1,4 @@
+// Menu.hpp
 #pragma once
 #include <SFML/Graphics.hpp>
 #include "Constants.hpp"
@@ -5,7 +6,9 @@
 enum class MenuOption {
     None,
     Sequential,
-    Parallel
+    Parallel,
+    GPU,
+    AutoTest
 };
 
 class Menu {
@@ -22,6 +25,12 @@ private:
 
     sf::RectangleShape btnParallel;
     sf::Text txtParallel;
+
+    sf::RectangleShape btnGPU;
+    sf::Text txtGPU;
+
+    sf::RectangleShape btnAutoTest;
+    sf::Text txtAutoTest;
 
     sf::Color baseColor;
     sf::Color hoverColor;
