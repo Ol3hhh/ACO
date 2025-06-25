@@ -1,9 +1,10 @@
 #include "Ant.hpp"
-
+#include <cmath>
+#include <limits>
 
 Ant::Ant(int numVertices)
     : numVertices(numVertices), pathLength(0.0f) {
-    path.reserve(numVertices + 1); 
+    path.reserve(numVertices + 1);
     visited.resize(numVertices, false);
 }
 
@@ -23,7 +24,8 @@ void Ant::visitVertex(int vertex, float distance) {
     currentVertex = vertex;
 }
 
-int Ant::chooseNextVertex(const Graph& graph, const std::vector<double>& pheromones, float alpha, float beta) {
+int Ant::chooseNextVertex(const Graph& graph, const std::vector<double>& pheromones,
+                          float alpha, float beta, std::mt19937& rng) {
     std::vector<float> probabilities(numVertices, 0.0f);
     float sum = 0.0f;
 
@@ -31,18 +33,15 @@ int Ant::chooseNextVertex(const Graph& graph, const std::vector<double>& pheromo
         if (!visited[j]) {
             double tau = pheromones[currentVertex * numVertices + j];
             double eta = 1.0 / graph.getWeight(currentVertex, j);
-            double value = std::pow(tau, alpha) * std::pow(eta, beta);
-            probabilities[j] = static_cast<float>(value);
-            sum += probabilities[j];
+            float value = static_cast<float>(std::pow(tau, alpha) * std::pow(eta, beta));
+            probabilities[j] = value;
+            sum += value;
         }
     }
 
-
     if (sum == 0.0f) {
-   
-        for (int j = 0; j < numVertices; ++j) {
+        for (int j = 0; j < numVertices; ++j)
             if (!visited[j]) return j;
-        }
         return -1;
     }
 
@@ -50,8 +49,8 @@ int Ant::chooseNextVertex(const Graph& graph, const std::vector<double>& pheromo
         p /= sum;
     }
 
-
-    float r = static_cast<float>(rand()) / RAND_MAX;
+    std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+    float r = dist(rng);
     float acc = 0.0f;
 
     for (int j = 0; j < numVertices; ++j) {
@@ -62,17 +61,16 @@ int Ant::chooseNextVertex(const Graph& graph, const std::vector<double>& pheromo
         }
     }
 
-
-    for (int j = 0; j < numVertices; ++j) {
+    for (int j = 0; j < numVertices; ++j)
         if (!visited[j]) return j;
-    }
 
     return -1;
 }
 
-void Ant::buildTour(const Graph& graph, const std::vector<double>& pheromones, float alpha, float beta) {
+void Ant::buildTour(const Graph& graph, const std::vector<double>& pheromones,
+                    float alpha, float beta, std::mt19937& rng) {
     for (int i = 1; i < numVertices; ++i) {
-        int next = chooseNextVertex(graph, pheromones, alpha, beta);
+        int next = chooseNextVertex(graph, pheromones, alpha, beta, rng);
         float dist = graph.getWeight(currentVertex, next);
         visitVertex(next, dist);
     }
@@ -96,5 +94,3 @@ const std::vector<int>& Ant::getPath() const {
 float Ant::getPathLength() const {
     return pathLength;
 }
-
-

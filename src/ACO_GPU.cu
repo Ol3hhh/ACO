@@ -7,7 +7,7 @@
 #include <stdexcept>
 #include <cassert>
 
-#define MAX_VERTICES 64
+#define MAX_VERTICES 501
 #define MAX_ANTS     1024
 #define INF_WEIGHT   1e6f  
 
@@ -20,12 +20,12 @@ __global__ void setup_kernel(curandState *state, unsigned long seed, int n) {
 __global__ void aco_kernel(
     int numVertices,
     int numAnts,
-    const float* graph,         // n x n
-    float* pheromones,          // n x n
+    const float* graph,         
+    float* pheromones,          
     float alpha,
     float beta,
     float Q,
-    int* outPaths,              // numAnts x (numVertices+1)
+    int* outPaths,              
     float* outLengths,
     curandState* states)
 {
@@ -114,10 +114,10 @@ ACO_GPU::ACO_GPU(const Graph& graph, int numAnts, float alpha, float beta, float
     : numAnts(numAnts), alpha(alpha), beta(beta), evaporation(evaporation), Q(Q), bestLength(std::numeric_limits<float>::max())
 {
     numVertices = graph.size();
-    assert(numVertices <= MAX_VERTICES && "Zwiększ MAX_VERTICES!");
-    assert(numAnts <= MAX_ANTS && "Zwiększ MAX_ANTS!");
+    assert(numVertices <= MAX_VERTICES && "lim v!");
+    assert(numAnts <= MAX_ANTS && "lim ants!");
 
-    // Konwertuj double -> float (CUDA)
+    // double -> float 
     const std::vector<double>& src = graph.data();
     hostGraphMatrix.resize(numVertices * numVertices);
     for (int i = 0; i < numVertices * numVertices; ++i)
@@ -125,7 +125,7 @@ ACO_GPU::ACO_GPU(const Graph& graph, int numAnts, float alpha, float beta, float
     bestPath.clear();
 }
 
-void ACO_GPU::run(int iterations) {
+void ACO_GPU::run(int iterations, unsigned long seed) {
     float* d_graph = nullptr;
     float* d_pheromones = nullptr;
     int* d_paths = nullptr;
@@ -146,15 +146,16 @@ void ACO_GPU::run(int iterations) {
     std::vector<float> hostPheromones(numVertices * numVertices, 1.0f);
     CUDA_ASSERT(cudaMemcpy(d_pheromones, hostPheromones.data(), matSize, cudaMemcpyHostToDevice));
 
-    setup_kernel<<<(numAnts+127)/128, 128>>>(d_states, 12345, numAnts);
+    setup_kernel<<<(numAnts + 127) / 128, 128>>>(d_states, seed, numAnts);
     cudaDeviceSynchronize();
 
     std::vector<int> h_paths(numAnts * (numVertices + 1));
     std::vector<float> h_lengths(numAnts);
 
     for (int iter = 0; iter < iterations; ++iter) {
-        aco_kernel<<<(numAnts+127)/128, 128>>>(numVertices, numAnts, d_graph, d_pheromones,
-                                               alpha, beta, Q, d_paths, d_lengths, d_states);
+        aco_kernel<<<(numAnts + 127) / 128, 128>>>(
+            numVertices, numAnts, d_graph, d_pheromones,
+            alpha, beta, Q, d_paths, d_lengths, d_states);
         cudaDeviceSynchronize();
 
         CUDA_ASSERT(cudaMemcpy(h_paths.data(), d_paths, pathSize, cudaMemcpyDeviceToHost));
@@ -163,31 +164,37 @@ void ACO_GPU::run(int iterations) {
         for (int i = 0; i < numAnts; ++i) {
             if (h_lengths[i] < bestLength) {
                 bestLength = h_lengths[i];
-                bestPath.assign(h_paths.begin() + i*(numVertices+1), h_paths.begin() + (i+1)*(numVertices+1));
+                bestPath.assign(h_paths.begin() + i * (numVertices + 1),
+                                h_paths.begin() + (i + 1) * (numVertices + 1));
             }
         }
 
-        // Aktualizacja feromonów na CPU
         for (auto& p : hostPheromones) p *= (1.0f - evaporation);
         for (int i = 0; i < numAnts; ++i) {
             float len = h_lengths[i];
-            if (len < INF_WEIGHT * 0.9f) { // ignoruj niepełne cykle!
+            if (len < INF_WEIGHT * 0.9f) {
                 float delta = Q / (len > 0.001f ? len : 0.001f);
                 for (int j = 0; j < numVertices; ++j) {
-                    int from = h_paths[i*(numVertices+1) + j];
-                    int to   = h_paths[i*(numVertices+1) + j + 1];
+                    int from = h_paths[i * (numVertices + 1) + j];
+                    int to = h_paths[i * (numVertices + 1) + j + 1];
                     hostPheromones[from * numVertices + to] += delta;
-                    hostPheromones[to   * numVertices + from] += delta; // symetria
+                    hostPheromones[to * numVertices + from] += delta;
                 }
             }
         }
-        for (auto& p : hostPheromones) if (p < 0.0001f) p = 0.0001f;
+        for (auto& p : hostPheromones)
+            if (p < 0.0001f) p = 0.0001f;
 
         CUDA_ASSERT(cudaMemcpy(d_pheromones, hostPheromones.data(), matSize, cudaMemcpyHostToDevice));
     }
 
-    cudaFree(d_graph); cudaFree(d_pheromones); cudaFree(d_paths); cudaFree(d_lengths); cudaFree(d_states);
+    cudaFree(d_graph);
+    cudaFree(d_pheromones);
+    cudaFree(d_paths);
+    cudaFree(d_lengths);
+    cudaFree(d_states);
 }
+
 
 const std::vector<int>& ACO_GPU::getBestPath() const {
     return bestPath;

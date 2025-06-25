@@ -1,4 +1,3 @@
-// Menu.cpp
 #include "Menu.hpp"
 #include "Constants.hpp"
 
@@ -8,7 +7,7 @@ Menu::Menu(sf::Font& font) {
 
     float centerX = SIZE / 2.0f;
 
-    // --- Tryb sekwencyjny ---
+    // sequential
     btnSequential.setSize({240, 70});
     btnSequential.setPosition(centerX - 120, (SIZE / 2) - 140);
     btnSequential.setFillColor(baseColor);
@@ -16,7 +15,7 @@ Menu::Menu(sf::Font& font) {
     btnSequential.setOutlineColor(sf::Color::White);
 
     txtSequential.setFont(font);
-    txtSequential.setString("Tryb sekwencyjny");
+    txtSequential.setString("Sequential");
     txtSequential.setCharacterSize(24);
     txtSequential.setFillColor(sf::Color::White);
 
@@ -27,7 +26,7 @@ Menu::Menu(sf::Font& font) {
         btnSequential.getPosition().y + btnSequential.getSize().y / 2.0f
     );
 
-    // --- Tryb wielowątkowy ---
+    // CPU
     btnParallel.setSize({240, 70});
     btnParallel.setPosition(centerX - 120, (SIZE / 2) - 40);
     btnParallel.setFillColor(baseColor);
@@ -35,7 +34,7 @@ Menu::Menu(sf::Font& font) {
     btnParallel.setOutlineColor(sf::Color::White);
 
     txtParallel.setFont(font);
-    txtParallel.setString("Tryb wielowątkowy");
+    txtParallel.setString("CPU");
     txtParallel.setCharacterSize(24);
     txtParallel.setFillColor(sf::Color::White);
 
@@ -46,7 +45,7 @@ Menu::Menu(sf::Font& font) {
         btnParallel.getPosition().y + btnParallel.getSize().y / 2.0f
     );
 
-    // --- Tryb GPU ---
+    // GPU
     btnGPU.setSize({240, 70});
     btnGPU.setPosition(centerX - 120, (SIZE / 2) + 60);
     btnGPU.setFillColor(baseColor);
@@ -54,7 +53,7 @@ Menu::Menu(sf::Font& font) {
     btnGPU.setOutlineColor(sf::Color::White);
 
     txtGPU.setFont(font);
-    txtGPU.setString("Tryb GPU (CUDA)");
+    txtGPU.setString("GPU");
     txtGPU.setCharacterSize(24);
     txtGPU.setFillColor(sf::Color::White);
 
@@ -65,7 +64,7 @@ Menu::Menu(sf::Font& font) {
         btnGPU.getPosition().y + btnGPU.getSize().y / 2.0f
     );
 
-    // --- Auto Test ---
+    // Auto Test 
     btnAutoTest.setSize({240, 70});
     btnAutoTest.setPosition(centerX - 120, (SIZE / 2) + 160);
     btnAutoTest.setFillColor(baseColor);
@@ -83,6 +82,27 @@ Menu::Menu(sf::Font& font) {
         btnAutoTest.getPosition().x + btnAutoTest.getSize().x / 2.0f,
         btnAutoTest.getPosition().y + btnAutoTest.getSize().y / 2.0f
     );
+
+
+        // Benchmark
+    btnBenchmark.setSize({240, 70});
+    btnBenchmark.setPosition(centerX - 120, (SIZE / 2) + 260);
+    btnBenchmark.setFillColor(baseColor);
+    btnBenchmark.setOutlineThickness(3);
+    btnBenchmark.setOutlineColor(sf::Color::White);
+
+    txtBenchmark.setFont(font);
+    txtBenchmark.setString("BENCHMARK");
+    txtBenchmark.setCharacterSize(24);
+    txtBenchmark.setFillColor(sf::Color::White);
+
+    sf::FloatRect bounds5 = txtBenchmark.getLocalBounds();
+    txtBenchmark.setOrigin(bounds5.left + bounds5.width / 2.0f, bounds5.top + bounds5.height / 2.0f);
+    txtBenchmark.setPosition(
+        btnBenchmark.getPosition().x + btnBenchmark.getSize().x / 2.0f,
+        btnBenchmark.getPosition().y + btnBenchmark.getSize().y / 2.0f
+    );
+
 }
 
 void Menu::draw(sf::RenderWindow& window) {
@@ -94,6 +114,9 @@ void Menu::draw(sf::RenderWindow& window) {
     window.draw(txtGPU);
     window.draw(btnAutoTest);
     window.draw(txtAutoTest);
+    window.draw(btnBenchmark);
+    window.draw(txtBenchmark);
+
 }
 
 MenuOption Menu::handleClick(const sf::Vector2f& mousePos) {
@@ -105,6 +128,9 @@ MenuOption Menu::handleClick(const sf::Vector2f& mousePos) {
         return MenuOption::GPU;
     if (btnAutoTest.getGlobalBounds().contains(mousePos))
         return MenuOption::AutoTest;
+    if (btnBenchmark.getGlobalBounds().contains(mousePos))
+        return MenuOption::Benchmark;
+
     return MenuOption::None;
 }
 
@@ -117,4 +143,7 @@ void Menu::handleHover(const sf::Vector2f& mousePos) {
         btnGPU.getGlobalBounds().contains(mousePos) ? hoverColor : baseColor);
     btnAutoTest.setFillColor(
         btnAutoTest.getGlobalBounds().contains(mousePos) ? hoverColor : baseColor);
+    btnBenchmark.setFillColor(
+        btnBenchmark.getGlobalBounds().contains(mousePos) ? hoverColor : baseColor);
+
 }
